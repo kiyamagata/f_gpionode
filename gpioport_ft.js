@@ -73,7 +73,8 @@ exports.GpiPort.prototype.read= function(){
 }
 exports.GpiPort.prototype.setup= function(){
 //    bs.pinMode(this.port,(this.pu)?bs.INPUT_PULLUP:bs.INPUT);
-    bs.pinMode(this.port,bs.INPUT,7,this.pu?'pullup':'disabled');
+//    bs.pinMode(this.port,bs.INPUT,7,this.pu?'pullup':'disabled');
+    bs.pinMode(this.port,bs.INPUT,9,this.pu?'pullup':'disabled');
     this.value=this.read();
 }
 exports.GpiPort.prototype.chkChg= function(callback){

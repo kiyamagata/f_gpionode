@@ -1,5 +1,8 @@
 //
 // take control (GENELIC)
+// 2020/6/24 sendsms(PPP start/stop)
+// 2020/6/22  DI_9 value=1 sendSMS
+// 2020/6/16  DI_8 value=1 sendMail
 // 2014/10/16 (hamamatu-fru yokkaichi)
 // 2015/1/22
 // 2015/2/12
@@ -7,7 +10,12 @@
 //var bs = require('bonescript');
 var gpt = require('./gpioport_ft');
 var cfg = require('./nodecfg');
+var mail = require('../mailtest/mail_test');
+var sms = require('../sms/sms');//sendSMS
+var fs = require('fs');         //sendSMS
+//var nodemailer = require('nodemailer');
 //var bs=gpt.bs;
+const { execSync } = require('child_process');
 
 //------------------------------------------------
 var opar=new Array(
@@ -27,7 +35,11 @@ var ipar=new Array(
   new gpt.GpiPort(4,1,true),
   new gpt.GpiPort(5,1,true),
   new gpt.GpiPort(6,1,true),
-  new gpt.GpiPort(7,1,true));
+//  new gpt.GpiPort(7,1,true));
+  new gpt.GpiPort(7,1,true), //
+  new gpt.GpiPort(8,1,true), //DI_8 sendMail
+//  new gpt.GpiPort(8,1,true)); //DI_8 sendMail
+  new gpt.GpiPort(9,1,true));//DI_9 sendSMS
 
 var memar={};
 
@@ -99,6 +111,14 @@ sock = dgram.createSocket("udp4", function (msg, rinfo) {
       bf =new Buffer("+OK");
       sock.send(bf,0,3,rinfo.port,rinfo.address);
   } 
+//DIST DIport status
+  if(msgstr.substr(0,4)=="DIST"){
+     console.log('port  |status');
+     console.log('---------------');
+     for(i=0;i<9;i++){
+        console.log('DI_',i,'|value:',ipar[i].read());
+     }
+  }
 });
 sock.bind(cfg.MYPORT, '0.0.0.0');
 
@@ -141,5 +161,36 @@ function loop(){
 
       });
    }
+//DI_8port sendmail
+   ipar[8].chkChg(function(e){
+       if(e.value){
+           console.log('send_start');
+           mail.smtp.sendMail(mail.message,function(error,info){
+               if(error){
+                   return console.log(error);
+               }else{
+                   console.log('Message sent:' +info.response);
+               }
+           });
+           console.log('send_end');
+       }
+   });
+//DI_9port sendsms
+   ipar[9].chkChg(function(e){
+       if(e.value){
+           console.log('sendsms_start');
+           //ppp stop
+           execSync('systemctl stop ppp.*');
+           //wait 10 sec
+           setTimeout(() => {
+             fs.copyFileSync(sms.src,sms.dest);
+             //wait 10 sec
+             setTimeout(() => {
+               execSync('systemctl start ppp.path');
+             },10000);
+           },10000);
+           console.log('sendsms_end');
+       }
+   });
 }
 setInterval(loop, 50);
